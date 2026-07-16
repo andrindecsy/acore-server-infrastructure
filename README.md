@@ -2,7 +2,7 @@
 
 Setup, operation, and automation of a Linux-based multiplayer server — including network troubleshooting, monitoring, and CI-like automation — built as a personal learning project.
 
-📖 **Detailed documentation:**
+**Detailed documentation:**
 - [Setup Guide](docs/SETUP.md) — database fixes, automation scripts, monitoring
 - [Tunneling & Networking](docs/TUNNELING.md) — CGNAT/DS-Lite diagnosis, evaluated approaches, final configuration
 
@@ -75,12 +75,7 @@ azerothcore-infra/
     └── discord-webhooks.conf.example
 ```
 
-## What I Learned
 
-- Systematic debugging across multiple infrastructure layers (network, OS, application, database)
-- Evaluating and comparing different technical solutions based on cost, stability, and fit for purpose
-- Automating operational workflows (deployment, monitoring, recovery) without manual intervention
-- The importance of logging and monitoring for diagnosing issues that only become visible over time
 
 ---
 
