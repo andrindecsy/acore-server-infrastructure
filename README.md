@@ -10,7 +10,8 @@ Setup, operation, and automation of a Linux-based multiplayer server — includi
 
 ```
 azerothcore-infra/
-├── README.md
+├── config/
+│   └── discord-webhooks.conf.example
 ├── docs/
 │   ├── SETUP.md
 │   └── TUNNELING.md
@@ -20,9 +21,8 @@ azerothcore-infra/
 │   ├── scheduled-restart.sh
 │   ├── watchdog.sh
 │   └── memlog.sh
-├── bashrc-functions.sh
-└── config/
-    └── discord-webhooks.conf.example
+├── README.md
+└── bashrc-functions.sh
 ```
 
 ## Overview
