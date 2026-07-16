@@ -2,6 +2,10 @@
 
 Setup, operation, and automation of a Linux-based multiplayer server — including network troubleshooting, monitoring, and CI-like automation — built as a personal learning project.
 
+**Detailed documentation:**
+- [Setup Guide](docs/SETUP.md) — database fixes, automation scripts, monitoring
+- [Tunneling & Networking](docs/TUNNELING.md) — CGNAT/DS-Lite diagnosis, evaluated approaches, final configuration
+
 ## Repo Structure
 
 ```
@@ -75,9 +79,6 @@ For details on the network architecture (why a tunnel was needed, do you also ne
 - **Networking:** NAT traversal, TCP tunneling, DDNS
 - **Integration:** REST APIs (curl, JSON), Discord Webhooks
 
-**Detailed documentation:**
-- [Setup Guide](docs/SETUP.md) — database fixes, automation scripts, monitoring
-- [Tunneling & Networking](docs/TUNNELING.md) — CGNAT/DS-Lite diagnosis, evaluated approaches, final configuration
 
 
 
