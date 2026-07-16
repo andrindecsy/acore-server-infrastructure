@@ -1,0 +1,26 @@
+# ============================================================
+# Discord Webhook Configuration — EXAMPLE FILE
+#
+# Setup:
+#   1. Create three text channels in your Discord server
+#      (e.g. #server-status, #memory-log, #warnings)
+#   2. For each channel: Channel Settings -> Integrations ->
+#      Webhooks -> New Webhook -> Copy Webhook URL
+#   3. Copy this file to your home directory as a real config:
+#         cp config/discord-webhooks.conf.example ~/discord-webhooks.conf
+#   4. Edit ~/discord-webhooks.conf and paste in your real URLs
+#
+# This file is sourced by server-start.sh, server-stop.sh,
+# scheduled-restart.sh, watchdog.sh, and memlog.sh via:
+#         source ~/discord-webhooks.conf
+# ============================================================
+
+WEBHOOK_STATUS="https://discord.com/api/webhooks/YOUR_STATUS_WEBHOOK_HERE"
+WEBHOOK_MEMORY="https://discord.com/api/webhooks/YOUR_MEMORY_WEBHOOK_HERE"
+WEBHOOK_WARNINGS="https://discord.com/api/webhooks/YOUR_WARNINGS_WEBHOOK_HERE"
+
+send_discord() {
+    local webhook="$1"
+    local message="$2"
+    curl -s -H "Content-Type: application/json" -X POST -d "{\"content\": \"${message}\"}" "$webhook" > /dev/null
+}
