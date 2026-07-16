@@ -11,7 +11,6 @@ Setup, operation, and automation of a Linux-based multiplayer server — includi
 ```
 azerothcore-infra/
 ├── README.md
-├── README_EN.md
 ├── docs/
 │   ├── SETUP.md
 │   └── TUNNELING.md
