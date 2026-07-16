@@ -57,20 +57,13 @@ ScriptFunctionserver-start.sh / server-stop.shClean start/stop with logging and 
 Tech Stack
 
 
-Scripting: Bash
-Database: MySQL (schema adjustments, data analysis via SQL)
-OS/Infrastructure: Linux (Ubuntu), systemd, cron, ufw/iptables
-Networking: NAT traversal, TCP tunneling, DNS (dynamic DNS)
-Integration: REST APIs (curl, JSON), Discord Webhooks
+- Scripting: Bash
+- Database: MySQL (schema adjustments, data analysis via SQL)
+- OS/Infrastructure: Linux (Ubuntu), systemd, cron, ufw/iptables
+- Networking: NAT traversal, TCP tunneling, DNS (dynamic DNS)
+- Integration: REST APIs (curl, JSON), Discord Webhooks
 
 
-What I Learned
-
-
-Systematic debugging across multiple infrastructure layers (network, OS, application, database)
-Evaluating and comparing different technical solutions based on cost, stability, and fit for purpose
-Automating operational workflows (deployment, monitoring, recovery) without manual intervention
-The importance of logging and monitoring for diagnosing issues that only become visible over time
 
 
 
