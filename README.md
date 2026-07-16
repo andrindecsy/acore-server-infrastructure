@@ -2,6 +2,10 @@
 
 Setup, operation, and automation of a Linux-based multiplayer server — including network troubleshooting, monitoring, and CI-like automation — built as a personal learning project.
 
+📖 **Detailed documentation:**
+- [Setup Guide](docs/SETUP.md) — database fixes, automation scripts, monitoring
+- [Tunneling & Networking](docs/TUNNELING.md) — CGNAT/DS-Lite diagnosis, evaluated approaches, final configuration
+
 ## Overview
 
 This project covers the complete setup of a persistent application server (AzerothCore, an open-source emulator for a well-known MMO client) on a self-managed Linux VM, including:
@@ -34,27 +38,22 @@ Linux VM (behind CGNAT/DS-Lite, no native public IPv4)
         Discord Webhooks (status, monitoring, and warning alerts)
 ```
 
-## Problems Solved (Selection)
+For details on the network architecture (why a tunnel was needed and which alternatives were evaluated), see [docs/TUNNELING.md](docs/TUNNELING.md).
 
-### Network Diagnosis: CGNAT/DS-Lite
-The host's internet connection turned out to be a DS-Lite connection (IPv6-only with a shared, non-forwardable IPv4 address via Carrier-Grade NAT). This made traditional port forwarding technically impossible. Solution: evaluated multiple tunneling approaches (including `bore`, Cloudflare Tunnel, self-hosted relay servers, and commercial tunnel providers), weighing cost, stability, and suitability for raw TCP traffic (not just HTTP).
+## Highlights
 
-### Database Constraint Error on IPv6 Connections
-After setting up a tunnel, authentication began failing. Root-cause analysis across multiple layers (network → application logs → database) revealed that the `last_ip` column was sized for plain IPv4 addresses only and too small for the IPv4-mapped IPv6 notation (`::ffff:x.x.x.x`) produced by tunneled connections. Fixed via a schema adjustment.
+- **CGNAT/DS-Lite diagnosis**: systematically narrowed down a network issue across multiple layers (router configuration → ISP connection type → cloud firewall → `tcpdump` packet analysis), see [docs/TUNNELING.md](docs/TUNNELING.md)
+- **Database root-cause analysis**: traced a schema constraint error that was silently breaking player logins, from application logs down to the exact cause, see [docs/SETUP.md](docs/SETUP.md)
+- **Long-term monitoring**: logged and analyzed memory usage across multiple test runs (up to 48h) to distinguish normal caching behavior from genuine resource growth
+- **Fully automated operations**: scheduled restarts with staggered player warnings, automatic crash detection and recovery, real-time Discord notifications
 
-### Long-Term Memory Analysis
-Systematic logging of memory usage across multiple test runs (up to 48h) to distinguish between normal caching behavior (Linux page cache) and genuine, continuous memory growth. Result: identified as documented, known behavior in the underlying software — mitigated by implementing automated, scheduled restarts.
+## Tech Stack
 
-## Automation
-
-| Script | Function |
-|---|---|
-| `scripts/server-start.sh` / `scripts/server-stop.sh` | Clean start/stop with logging and state tracking |
-| `scripts/scheduled-restart.sh` | Scheduled restart with staggered player warnings (15 min down to a live countdown) and a forced save |
-| `scripts/watchdog.sh` | Cron-based crash detection with automatic recovery restart |
-| `scripts/memlog.sh` | Continuous memory monitoring with threshold-based alerts |
-| `bashrc-functions.sh` | Interactive shell functions (status checks, tunnel control, restart control) |
-| Discord integration | Status updates (start/stop/restart), warnings (crashes, low memory), periodic reports |
+- **Scripting:** Bash
+- **Database:** MySQL (schema adjustments, data analysis via SQL)
+- **OS/Infrastructure:** Linux (Ubuntu), systemd, cron, ufw/iptables
+- **Networking:** NAT traversal, TCP tunneling, DNS (dynamic DNS)
+- **Integration:** REST APIs (curl, JSON), Discord Webhooks
 
 ## Repo Structure
 
@@ -62,6 +61,9 @@ Systematic logging of memory usage across multiple test runs (up to 48h) to dist
 azerothcore-infra/
 ├── README.md
 ├── README_EN.md
+├── docs/
+│   ├── SETUP.md
+│   └── TUNNELING.md
 ├── scripts/
 │   ├── server-start.sh
 │   ├── server-stop.sh
@@ -73,16 +75,12 @@ azerothcore-infra/
     └── discord-webhooks.conf.example
 ```
 
-**Configuration note:** the scripts load their Discord webhook URLs via a hardcoded home-directory path (`source ~/discord-webhooks.conf`), not a path relative to the script's location. `config/discord-webhooks.conf.example` is therefore only a template — for actual deployment, copy it to `~/discord-webhooks.conf` and fill in real webhook URLs.
+## What I Learned
 
-## Tech Stack
-
-- **Scripting:** Bash
-- **Database:** MySQL (schema adjustments, data analysis via SQL)
-- **OS/Infrastructure:** Linux (Ubuntu), systemd, cron, ufw/iptables
-- **Networking:** NAT traversal, TCP tunneling, DNS (dynamic DNS)
-- **Integration:** REST APIs (curl, JSON), Discord Webhooks
-
+- Systematic debugging across multiple infrastructure layers (network, OS, application, database)
+- Evaluating and comparing different technical solutions based on cost, stability, and fit for purpose
+- Automating operational workflows (deployment, monitoring, recovery) without manual intervention
+- The importance of logging and monitoring for diagnosing issues that only become visible over time
 
 ---
 
