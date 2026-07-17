@@ -1,8 +1,8 @@
-# Network Setup
+# Network
 
 This is your first stop after succesfully installing the server applications and confirming they run, which is where the [video guide](https://www.youtube.com/watch?v=DwJ6OfPophw) I mentioned will leave you. In here we will cover how external players can reach a game server hosted on a home connection and what roadblocks you might encounter
 
-## Port Forwarding: could be simple, or not at all
+## Port Forwarding, or maybe not
 
 When you break down a World of Warcraft server, there are two separate applications running on the machine, the **authentication server** and the **world server**. The auth-server handles log in, realm selection, character selection and forwards the connection to the world-server, which handles all the game logic. As they are completly different processes, their access is also separate; auth-server is assigned port 3724, world-server gets 8085, these numbers will the important in a moment. That means incoming internet traffic has to specify that they want to access the right port when reaching your machine, and that is where we hit our first checkpoint
 
@@ -39,15 +39,15 @@ bashsudo tcpdump -i any port 3724 -n -v
 
 If you see SYN packets arriving from the outside while someone's testing, your forwarding works and the problem is elsewhere (server-side, most likely). If you see nothing at all, something between you and the internet is still eating the traffic — which is exactly the symptom that sent me down the CGNAT rabbit hole in the first place.
 
-### Tunnels
+## Tunnels
 
 For most people a simple port forwarding will not work, since most people can't recieve IPv4 traffic, only IPv6. So the solution is to transform the incoming traffic into IPv6 addresses, and that is where tunnels come into play. Tunnels sit between your machine and the internet and your machine, recieving information, transforming it into the right format (IPv6) and rerouting it to your machine. Here are some of the tunnel service options I explored:
 
-#### Cloudflare Tunnel
+### Cloudflare Tunnel
 
 Cloudflare Tunnel handles HTTP/HTTPS natively, but non-HTTP protocols (which a game server is not) require every connecting client to run `cloudflared` locally and connect via `localhost`. I didn't explore this solution further because I didn't find it satisfying having players download extra software to connect. You can go down this route and have it work, it's free and stable, but I can't offer more guidance than this.
 
-#### [bore](https://github.com/ekzhang/bore)
+### [bore](https://github.com/ekzhang/bore)
 
 bore is a minimal open-source Tunnel. This option was tried and saw a bit of success, but it had two major limitations. First, the bore process running on the server would assign random ports on restart or any time the bore process crashed and had to be brought up again. This meant that players would have to manually change their realmlist.WTF file every time one of those happened. Second, some players' networks block arbitrary high ports (10000+ range) which is exactly the port range the publicly hosted service at `bore.pub` would assign. This was confirmed via `Test-NetConnection` connection tests from the affected player's machine, which failed on the tunnel's specific port but succeeded on common ports like 443.
 
@@ -55,7 +55,7 @@ The alternative to the public bore service is a self-hosted bore server on an ex
 
 Don't feel discouraged to go down this route though, I only opted for a different solution entirely because it was taking me too much time to diagnose the cloud VM's network problems.
 
-#### [Localtonet](https://localtonet.com/)
+### [Localtonet](https://localtonet.com/)
 
 It supports TCP tunnels right out of the box without any VM hosting, and also offers static IP addresses. The setup:
 
@@ -63,9 +63,9 @@ It supports TCP tunnels right out of the box without any VM hosting, and also of
 - Enable the static/reserved address option on each tunnel, so the hostname:port never changes across restarts
 - Point the realmlist at the tunnel addresses (see below)
 
-There is a caveat: Localtonet bills per tunnel based on running time (not bandwidth) — roughly a couple dollars/month per tunnel if left running continuously. Since this is a hobby server without 24/7 demand, tunnels are started/stopped on demand via the Localtonet REST API (see bashrc-functions.sh's golocal/goonline functions), rather than the local --start-service/--stop-service CLI commands, which only control the local client process and do not stop billing — billing is tied to the tunnel's state on Localtonet's servers, controlled via POST /api/v2/tunnels/{id}/actions/start and .../stop.
+There is a caveat: Localtonet bills per tunnel based on running time, not bandwidth - roughly a couple dollars/month per tunnel if left running continuously. Since this is a hobby server without 24/7 demand, there is no need to leave the tunnels running while noone is playing or you are by yourself. We will not be going into the scripting here, that is covered in [SETUP.md](SETUP.md), just know that there are two bash functions for that, golocal and goonline, to switch between the two from your console and avoid unnecessary billing.
 
-### Realmlist Configuration
+## Realmlist Configuration
 
 The `realmlist` table on your server needs both the public tunnel address and a `localAddress` for same-subnet connections:
 
@@ -85,50 +85,29 @@ set realmlist your-auth-tunnel-hostname.localto.net:<auth-tunnel-port>
 ```
 ### Database Fix
 
-Once the tunnel is actually working, we still need to modify the database to match this change in IP formatting
+Once the tunnel is actually working there is still a small database tweak to be made.
 
-Symptom: a player gets as far as character selection, then gets disconnected a second or two later. The client shows nothing useful. Your server log, on the other hand, has this waiting for you:
+If you or anyone else tried to log in at this point you would get to the character selection for a split second before getting logged off, after which the following would appear on your world-server log:
 
+```
 WorldSocket::HandleAuthSession: Authentication failed for account: 101 ('ACCOUNTNAME') address: ::ffff:127.0.0.1
+```
 
-That ::ffff:127.0.0.1 is the tell. It's IPv4-mapped IPv6 notation — the format an address takes when a connection arrives through a dual-stack socket, which is exactly what happens once traffic is passing through a tunnel relay rather than hitting your server directly. Nothing wrong with the address itself; it's just longer than a plain IPv4 string.
+We see an error message telling us the authentification process for a log in attempt from the specified IP address failed. Do you notice anything strange about the address? The right half looks like regular IPv4, the left half is just a bunch of letters. That actually means the tunnel is working correctly, this is IPv4-mapped IPv6 notation. The localtonet servers recieve the incoming IPv4 formatted IP and extend it to IPv6 length when sending it to you. It has something to do with dual-stack sockets, haven't looked that in detail into it yet.
 
-The actual problem: authserver writes the connecting IP into the account table's last_ip column as part of finishing the login handshake — and if that column was sized for plain IPv4 addresses only, the write fails outright:
+When taking a look at the auth-server log files (if you ever need to troubleshoot an issue these can be great sources of information, usually located in the ~/azerothcore-wotlk/env/dist/bin directory, look for Auth.log and Server.log) we see the following entries from when we tried logging in:
 
+```
 [ERROR]: [1406] Data too long for column 'last_ip' at row 1
+```
 
-Since that same SQL statement also sets the account's session_key, the failed write means the session key never gets saved either — which is the actual reason the world server then rejects the connection a moment later. Two failures, one root cause, and the second one is what you actually see in the logs unless you go looking at Auth.log specifically.
+And here we have the problem spelled out for us. Auth-server writes the connecting IP into the account table's last_ip column as part of finishing the login handshake — and if that column was sized for plain IPv4 addresses only, the write fails outright. Also, since that same SQL statement also sets the account's session_key, the failed write means the session key never gets saved either — which is the actual reason the world server then rejects the connection a moment later. Two failures, one root cause, and the second one is what you actually see in the logs unless you go looking at Auth.log specifically.
 
 The fix is a one-time schema change:
 
-sqlALTER TABLE account MODIFY last_ip VARCHAR(45);
+```
+ALTER TABLE account MODIFY last_ip VARCHAR(45);
 ALTER TABLE account MODIFY last_attempt_ip VARCHAR(45);
+```
 
 VARCHAR(45) is the standard safe size for any IPv6 representation, mapped or native. Run it once, restart nothing, and the very next login attempt should go through cleanly.
-
-Not Paying for Idle Tunnels
-
-Since Localtonet bills by tunnel uptime rather than bandwidth, leaving both tunnels running around the clock adds up for basically no benefit on evenings nobody's around to play. golocal and goonline (both in bashrc-functions.sh) exist to make that a one-word decision instead of a dashboard trip.
-
-bashgolocal
-
-Stops both tunnels via the Localtonet API — not the local client service, the actual tunnel state on their end, since that's what billing is tied to — and points the realmlist table at the server's own LAN IP instead. Free, but only reachable from the same network as the server. This is what I use for solo testing.
-
-bashgoonline
-
-The reverse: starts both tunnels back up and repoints realmlist at the tunnel addresses, so external players can get back in.
-
-Both are genuinely just a few curl calls to Localtonet's API followed by one UPDATE statement — nothing clever, just enough automation that switching modes stopped being annoying enough that I'd forget to bother. serverstatus (see SETUP.md) reports which mode you're currently in, along with the exact realmlist.wtf line to hand out, pulled live rather than hardcoded — so it stays correct even as tunnel addresses or ports change underneath it.
-
-
-
-
-
-
-
-
-
-
-
-
-
