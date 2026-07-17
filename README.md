@@ -7,6 +7,8 @@ Setup, operation, and automation of a Linux-based multiplayer server, including 
 - [Setup Guide](docs/SETUP.md) - automation scripts, monitoring
 - [Discord Integration](docs/NOTIFICATION-SYSTEM-md) - relay server data to text channels
 
+This is a somewhat in-order list for the documentation based on when you will probably be needing each part.
+
 ## Repo Structure
 
 ```
@@ -28,7 +30,7 @@ azerothcore-infra/
 
 ## Overview
 
-This project covers my journey of setting up a persistent application server on a Linux machine, which could be your main machine, a VM on your main machine, a cloud VM, a Raspberry Pi or any other device with enough memory and an internet connection. You could find any one piece of information in here useful for your own projects. It is meant more as a documentation of the learning process and less as a comprehensive, all-encompassing guide. It includes:
+This project covers my journey of setting up a persistent application server on a Linux machine, which could be your main machine, a VM on your main machine, a cloud VM, a Raspberry Pi or any other device with enough memory and an internet connection. You could find any one piece of information in here useful for your own projects. It is meant more as a documentation of all the interesting facts I learned throughout and less as a comprehensive, all-encompassing guide. It includes:
 
 - Network diagnosis and resolution aka. my friends can't connect to my server, what do I do?
 - Fully automated monitoring and maintenance via Cron-Jobs. This includes server-data logging, scheduled controlled restart and a watchdog process for detecting crashed services and automatically restarting them
