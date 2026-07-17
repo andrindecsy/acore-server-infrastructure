@@ -1,10 +1,11 @@
 # Self-Hosted Game Server Infrastructure
 
-Setup, operation, and automation of a Linux-based multiplayer server — including network troubleshooting, monitoring, and CI-like automation — built as a personal learning project.
+Setup, operation, and automation of a Linux-based multiplayer server, including network troubleshooting, monitoring, and CI-like automation - built as a personal learning project.
 
 **Detailed documentation:**
-- [Setup Guide](docs/SETUP.md) — database fixes, automation scripts, monitoring
-- [Tunneling & Networking](docs/TUNNELING.md) — CGNAT/DS-Lite diagnosis, evaluated approaches, final configuration
+- [Tunneling & Networking](docs/TUNNELING.md) - network diagnosis, database fixes, evaluated approaches, final configuration
+- [Setup Guide](docs/SETUP.md) - automation scripts, monitoring
+- [Discord Integration](docs/NOTIFICATION-SYSTEM-md) - relay server data to text channels
 
 ## Repo Structure
 
@@ -29,11 +30,21 @@ azerothcore-infra/
 
 This project covers my journey of setting up a persistent application server on a Linux machine, which could be your main machine, a VM on your main machine, a cloud VM, a Raspberry Pi or any other device with enough memory and an internet connection. You could find any one piece of information in here useful for your own projects. It is meant more as a documentation of the learning process and less as a comprehensive, all-encompassing guide. It includes:
 
-- Network diagnosis and resolution aka. my friends can't connect to my server
-- Fully automated operations
-- External Discord notifications via REST API integration
+- Network diagnosis and resolution aka. my friends can't connect to my server, what do I do?
+- Fully automated monitoring and maintenance via Cron-Jobs. This includes server-data logging, scheduled controlled restart and a watchdog process for detecting crashed services and automatically restarting them
+- External Discord notifications via REST API integration for relaying analytics data gained from monitoring processes. Make relevant information such as server status, performance and scheduled restarts easily accesible.
 
-The focus of this repo is **not** the server application itself (which is open source, see [AzerothCore](https://github.com/azerothcore/azerothcore-wotlk)), but the **independently developed infrastructure and automation layer** built on top of it. I will not be going into the server installation itself and instead [point you to this video guide](https://www.youtube.com/watch?v=DwJ6OfPophw) that I myself followed.
+The focus of this repo is **not** the server application itself (which is open source, see [AzerothCore](https://github.com/azerothcore/azerothcore-wotlk)), but the **independently developed infrastructure and automation layer** built on top of it. I will not be going into the server installation itself and instead point you to [the official wiki](https://www.azerothcore.org/wiki/installation) and [this video guide](https://www.youtube.com/watch?v=DwJ6OfPophw) that I myself followed.
+
+AzerothCore is a modular server solution, meaning it was developed as a solid core to which auxilary modules can be attached with relative ease. The server this documentation is based has the following modules installed:
+
+- [Playerbots](https://github.com/mod-playerbots/mod-playerbots)
+- [AHBot](https://github.com/azerothcore/mod-ah-bot)
+- [MultiBot Bridge](https://github.com/Wishmaster117/mod-multibot-bridge) serverside + [MultiBot Chatless](https://github.com/Wishmaster117/MultiBot-Chatless) client side
+- [Dungeon Clear](https://github.com/jrad7/mod-dungeon-clear) serverside + [Dungeon Clear Addon](https://github.com/jrad7/mod-dungeon-clear-addon) client side
+
+These are just listed for the sake of completeness, as the scripts talked about here don't rely on any other software other than the base core.
+
 
 ## Architecture
 
@@ -60,8 +71,6 @@ Your server
                 ▼
         Discord Webhooks (status, monitoring, and warning alerts)
 ```
-
-For details on the network architecture (why a tunnel was needed, do you also need one, the solution I ended up using and some alternatives), see [docs/TUNNELING.md](docs/TUNNELING.md).
 
 ## Highlights
 
