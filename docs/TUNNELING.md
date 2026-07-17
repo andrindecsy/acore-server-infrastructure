@@ -6,19 +6,38 @@ This is your first stop after succesfully installing the server applications and
 
 When you break down a World of Warcraft server, there are two separate applications running on the machine, the **authentication server** and the **world server**. The auth-server handles log in, realm selection, character selection and forwards the connection to the world-server, which handles all the game logic. As they are completly different processes, their access is also separate; auth-server is assigned port 3724, world-server gets 8085, these numbers will the important in a moment. That means incoming internet traffic has to specify that they want to access the right port when reaching your machine, and that is where we hit our first checkpoint
 
-### IPv4 vs Ipv6
+### IPv4 vs IPv6
 
-There are two types of internet addresses, **IPv4 and IPv6**. Here is a small history tangent (feel free to skip three paragraphs): the internet was at first experimental research that started around the 1960s; the first big scale network infrastructure was built between universities in '69, the World Wide Web with its user-friendly interface came in '89. Back then in the research fase there were decisions to be made, like for example how to uniquely identify all machines connected to the network. The solution Vincent Cerf and Bob Kahn at DARPA came up with was TCP/IP. It works on binary digits and in theory assigns a unique set of 32 bits to each machine on the network as an address that you can send information to/from. Having an address space of 32 bits means there are $2^{32}$ = 4.3 billion possible unique addresses, give or take. At the time the researches deemed impossible for their project ever to reach that number of connected machines. Currently there are around **21.9 billion** active connected devices worldwide. It is safe to say they underestimated the potential usage of their internet.
+There are two types of internet addresses, **IPv4 and IPv6**. Here is a small history tangent (feel free to skip three paragraphs): the internet was at first experimental research that started around the 1960s; the first big scale network infrastructure was built between universities in '69, the World Wide Web with its user-friendly interface came in '89. Back then in the research phase there were decisions to be made, like for example how to uniquely identify all machines connected to the network. The solution Vincent Cerf and Bob Kahn at DARPA came up with was TCP/IP. It works on binary digits and in theory assigns a unique set of 32 bits to each machine on the network as an address that you can send information to/from. Having an address space of 32 bits means there are $2^{32}$ = 4.3 billion possible unique addresses, give or take. At the time the researchers deemed impossible for their project ever to reach that number of connected machines. Currently there are around **21.9 billion** active connected devices worldwide. It is safe to say they underestimated the potential usage of their internet.
 
-That was IPv4. Shortly after that IPv6 was deployed with 128 bit addresses, allowing $2^{128}$ unique addresses. These addresses began being given out, and they should be enough for the next while, but the problem wasn't completly solved. By the time IPv6 was ratified as an Internet Standard in 2017 the whole world's internet infrastructure was based on IPv4. Many services such as websites, servers and smart home devices rely on the IPv4 standard, but we ran out of those addresses years ago. That is where **NAT** (Network Address Translation) comes into play. With NAT you can map several devices onto the same IPv4 address, so they share the same identifier to the ousite world. When information is recieved, the NAT is then responsible to identify which of the devices it is supposed to go and reroutes it.
+That was IPv4. Over a decade after that IPv6 was deployed with 128 bit addresses, allowing $2^{128}$ unique addresses. These addresses began being given out, and they should be enough for the next while, but the problem wasn't completly solved. By the time IPv6 was ratified as an Internet Standard in 2017 the whole world's internet infrastructure was based on IPv4. Many services such as websites, servers and smart home devices rely on the IPv4 standard, but we ran out of those addresses years ago. That is where **NAT** (Network Address Translation) comes into play. With NAT you can map several devices onto the same IPv4 address, so they share the same identifier to the ousite world. When information is recieved, the NAT is then responsible to identify which of the devices it is supposed to go and reroutes it.
 
 As we can imagine, IPv4 addresses are rare and comparetively expensive. That is why ISPs all over the world use CGNAT (Carrier-Grade Network Address Translation) to assign one IPv4 address to up to hundreds of individual devices. So someone on a CGNAT wouldn't have a unique IPv4 address, and that's a problem.
 
-**Why this all matters:** for you to make your game server visible to the internet you need to open ports 3724 and 8085 (auth and world respectively) on your router to allow incoming traffic to the server applications, but that only works if you have a native IPv4 address, otherwise you can send data just fine, but can't recieve it, because doesn't reroute to you and gets lost at the NAT entrance. Depending on where you live it will be more or less common for ISPs to give out a IPv4 address on a regular plan if you haven't specifically asked for one. Where I come from you can only get one on a very expensive plan. So here is a workaround
+**Why this all matters:** for you to make your game server visible to the internet you need to open ports 3724 and 8085 (auth and world respectively) on your router to allow incoming traffic to the server applications, but that only works if you have a native IPv4 address, otherwise you can send data just fine, but can't recieve it, because it doesn't reroute to you and gets lost at the NAT entrance. Depending on where you live it will be more or less common for ISPs to give out a IPv4 address on a regular plan if you haven't specifically asked for one. Where I come from you can only get one on a very expensive plan. So here is a workaround
 
 ### Does my ISP allow incoming IPv4 traffic?
 
-To see if you are even on a CGNAT go to your router settings page by typing your router's local IP into your browser, typically something along the lines of 192.168.1.1. Once logged in there, go to your internet settings and look for anything mentioning DS-Lite or Native IPv6. If you don't see any of those, or explicitly see Native IPv4 then all you have to do is open ports 3724 and 8085 using [this guide](https://portforward.com/) and give your friends your IP address followed by a ":3724" (what this does is redirect then to your auth-server and from there everything whould be handled). They should copy that and paste it in their realmlist.WTF file, tipically located in wow_directory/Data/enUS/realmlist.WTF after the set realmlist already string found there.
+Now most people are on CGNATs, but it's worth double checking before jumping into the workaround. If you are lucky enough to have a native IPv4 connection you can skip the whole tunneling section entirely.
+
+Go to your router's settings page by typing its local IP into your browser — typically something like 192.168.1.1 or 192.168.178.1, though it varies by manufacturer. Once you're in, look for your internet/WAN connection settings. What you're hunting for is any explicit mention of DS-Lite or "Native IPv6 with IPv4 via CGNAT" — if either of those shows up, you're on the tunnel path, and none of the port forwarding below will ever work no matter how correctly you configure it, since your router genuinely isn't the edge of the internet for your IPv4 address; your ISP's shared NAT box is.
+
+If instead you see Native IPv4 (or nothing suggesting a workaround at all), you're in the easier position. All you need is:
+
+
+Open ports 3724 and 8085 on your router — portforward.com has walkthroughs for basically every consumer router model
+Give your friends your public IPv4 address followed by :3724
+
+
+They paste that into their realmlist.wtf (typically wow_directory/Data/enUS/realmlist.WTF) after the existing set realmlist string, replacing whatever's there.
+
+One thing worth double-checking either way, regardless of which category you fall into: a correctly forwarded port doesn't always mean traffic is actually arriving. If people still can't connect after this, a live packet capture while someone attempts a connection is the most reliable way to know for certain whether the problem is your configuration or something further upstream you can't fix from your end:
+
+```
+bashsudo tcpdump -i any port 3724 -n -v
+```
+
+If you see SYN packets arriving from the outside while someone's testing, your forwarding works and the problem is elsewhere (server-side, most likely). If you see nothing at all, something between you and the internet is still eating the traffic — which is exactly the symptom that sent me down the CGNAT rabbit hole in the first place.
 
 ### Tunnels
 
@@ -30,9 +49,9 @@ Cloudflare Tunnel handles HTTP/HTTPS natively, but non-HTTP protocols (which a g
 
 #### [bore](https://github.com/ekzhang/bore)
 
-bore is a minimal open-source Tunnel. This option was tried and saw a bit of success, but it had two major limitations. First, the bore process running on the server would assign random ports on restart or any time the bore process crashed and had to be brought up again. This meant that players would have to manually change their realmlist.WTF file every time one of those happened. Second, some players' networks block arbitrary high ports (10000+ range) which is exactly the port range the publicly hosted service at `pore.pub` would assign. This was confirmed via `Test-NetConnection` connection tests from the affected player's machine, which failed on the tunnel's specific port but succeeded on common ports like 443.
+bore is a minimal open-source Tunnel. This option was tried and saw a bit of success, but it had two major limitations. First, the bore process running on the server would assign random ports on restart or any time the bore process crashed and had to be brought up again. This meant that players would have to manually change their realmlist.WTF file every time one of those happened. Second, some players' networks block arbitrary high ports (10000+ range) which is exactly the port range the publicly hosted service at `bore.pub` would assign. This was confirmed via `Test-NetConnection` connection tests from the affected player's machine, which failed on the tunnel's specific port but succeeded on common ports like 443.
 
-The alternative to the public bore service is a self-hosted bore server on an external machine wich allows IPv4 traffic. This option was also tried on a free Oracle Cloud VM. On paper it would have been perfect, no more random ports or too high ports that get blocked (self hosting assigns lower pots). Unfortunately I hit a wall getting incoming traffic into the Cloud VM. Any attempts of accessing any port other than 22 (ssh) wouldn't get to the machine. This was confirmed via `tcdump` showing zero packets ever arriving at the VM's network interface, ruling out any local misconfiguration.
+The alternative to the public bore service is a self-hosted bore server on an external machine which allows IPv4 traffic. This option was also tried on a free Oracle Cloud VM. On paper it would have been perfect, no more random ports or too high ports that get blocked (self hosting assigns lower ports). Unfortunately I hit a wall getting incoming traffic into the Cloud VM. Any attempts of accessing any port other than 22 (ssh) wouldn't get to the machine. This was confirmed via `tcpdump` showing zero packets ever arriving at the VM's network interface, ruling out any local misconfiguration.
 
 Don't feel discouraged to go down this route though, I only opted for a different solution entirely because it was taking me too much time to diagnose the cloud VM's network problems.
 
@@ -64,7 +83,42 @@ Players connect using:
 ```
 set realmlist your-auth-tunnel-hostname.localto.net:<auth-tunnel-port>
 ```
+### Database Fix
 
+Once the tunnel is actually working, we still need to modify the database to match this change in IP formatting
+
+Symptom: a player gets as far as character selection, then gets disconnected a second or two later. The client shows nothing useful. Your server log, on the other hand, has this waiting for you:
+
+WorldSocket::HandleAuthSession: Authentication failed for account: 101 ('ACCOUNTNAME') address: ::ffff:127.0.0.1
+
+That ::ffff:127.0.0.1 is the tell. It's IPv4-mapped IPv6 notation — the format an address takes when a connection arrives through a dual-stack socket, which is exactly what happens once traffic is passing through a tunnel relay rather than hitting your server directly. Nothing wrong with the address itself; it's just longer than a plain IPv4 string.
+
+The actual problem: authserver writes the connecting IP into the account table's last_ip column as part of finishing the login handshake — and if that column was sized for plain IPv4 addresses only, the write fails outright:
+
+[ERROR]: [1406] Data too long for column 'last_ip' at row 1
+
+Since that same SQL statement also sets the account's session_key, the failed write means the session key never gets saved either — which is the actual reason the world server then rejects the connection a moment later. Two failures, one root cause, and the second one is what you actually see in the logs unless you go looking at Auth.log specifically.
+
+The fix is a one-time schema change:
+
+sqlALTER TABLE account MODIFY last_ip VARCHAR(45);
+ALTER TABLE account MODIFY last_attempt_ip VARCHAR(45);
+
+VARCHAR(45) is the standard safe size for any IPv6 representation, mapped or native. Run it once, restart nothing, and the very next login attempt should go through cleanly.
+
+Not Paying for Idle Tunnels
+
+Since Localtonet bills by tunnel uptime rather than bandwidth, leaving both tunnels running around the clock adds up for basically no benefit on evenings nobody's around to play. golocal and goonline (both in bashrc-functions.sh) exist to make that a one-word decision instead of a dashboard trip.
+
+bashgolocal
+
+Stops both tunnels via the Localtonet API — not the local client service, the actual tunnel state on their end, since that's what billing is tied to — and points the realmlist table at the server's own LAN IP instead. Free, but only reachable from the same network as the server. This is what I use for solo testing.
+
+bashgoonline
+
+The reverse: starts both tunnels back up and repoints realmlist at the tunnel addresses, so external players can get back in.
+
+Both are genuinely just a few curl calls to Localtonet's API followed by one UPDATE statement — nothing clever, just enough automation that switching modes stopped being annoying enough that I'd forget to bother. serverstatus (see SETUP.md) reports which mode you're currently in, along with the exact realmlist.wtf line to hand out, pulled live rather than hardcoded — so it stays correct even as tunnel addresses or ports change underneath it.
 
 
 
