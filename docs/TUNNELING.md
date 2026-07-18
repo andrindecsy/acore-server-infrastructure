@@ -63,7 +63,7 @@ It supports TCP tunnels right out of the box without any VM hosting, and also of
 - Enable the static/reserved address option on each tunnel, so the hostname:port never changes across restarts
 - Point the realmlist at the tunnel addresses (see below)
 
-There is a caveat: Localtonet bills per tunnel based on running time, not bandwidth - roughly a couple dollars/month per tunnel if left running continuously. Since this is a hobby server without 24/7 demand, there is no need to leave the tunnels running while noone is playing or you are by yourself. We will not be going into the scripting here, that is covered in [SETUP.md](SETUP.md), just know that there are two bash functions for that, golocal and goonline, to switch between the two from your console and avoid unnecessary billing.
+There is a caveat: Localtonet bills per tunnel based on running time, not bandwidth - roughly a couple dollars/month per tunnel if left running continuously. Since this is a hobby server without 24/7 demand, there is no need to leave the tunnels running while noone is playing or you are by yourself. We will not be going into the scripting here, that is covered in [AUTOMATION.md](AUTOMATION.md), just know that there are two bash functions for that, golocal and goonline, to switch between the two from your console and avoid unnecessary billing.
 
 ## Realmlist Configuration
 
