@@ -3,7 +3,7 @@
 **This document is a WIP, certain parts might be incomplete or totally missing**
 ---
 
-This builds on [SETUP.md](SETUP.md) — everything here assumes you've already got the automation scripts in place, since the whole point of this doc is getting *those* scripts to actually tell you something instead of silently doing their job somewhere you're not looking.
+This builds on [AUTOMATION.md](AUTOMATION.md) — everything here assumes you've already got the automation scripts in place, since the whole point of this doc is getting *those* scripts to actually tell you something instead of silently doing their job somewhere you're not looking.
 
 ## Why I Wanted This
 
