@@ -4,7 +4,7 @@ Setup, operation, and automation of a Linux-based multiplayer server, including 
 
 **Detailed documentation:**
 - [Tunneling & Networking](docs/TUNNELING.md) - network diagnosis, database fixes, evaluated approaches, final configuration
-- [Setup Guide](docs/SETUP.md) - automation scripts, monitoring
+- [Automation set up](docs/AUTOMATION.md) - automation scripts, monitoring
 - [Discord Integration](docs/NOTIFICATION-SYSTEM.md) - relay server data to text channels
 
 This is a somewhat in-order list for the documentation based on when you will probably be needing each part.
