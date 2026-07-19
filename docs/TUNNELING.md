@@ -20,12 +20,12 @@ As we can imagine, IPv4 addresses are rare and comparetively expensive. That is 
 
 Now most people are on CGNATs, but it's worth double checking before jumping into the workaround. If you are lucky enough to have a native IPv4 connection you can skip the whole tunneling section entirely.
 
-Go to your router's settings page by typing its local IP into your browser — typically something like 192.168.1.1 or 192.168.178.1, though it varies by manufacturer. Once you're in, look for your internet/WAN connection settings. What you're hunting for is any explicit mention of DS-Lite or "Native IPv6 with IPv4 via CGNAT" — if either of those shows up, you're on the tunnel path, and none of the port forwarding below will ever work no matter how correctly you configure it, since your router genuinely isn't the edge of the internet for your IPv4 address; your ISP's shared NAT box is.
+Go to your router's settings page by typing its local IP into your browser - typically something like 192.168.1.1 or 192.168.178.1, though it varies by manufacturer. Once you're in, look for your internet/WAN connection settings. What you're hunting for is any explicit mention of DS-Lite or "Native IPv6 with IPv4 via CGNAT" - if either of those shows up, you're on the tunnel path, and none of the port forwarding below will ever work no matter how correctly you configure it, since your router genuinely isn't the edge of the internet for your IPv4 address; your ISP's shared NAT box is.
 
 If instead you see Native IPv4 (or nothing suggesting a workaround at all), you're in the easier position. All you need is:
 
 
-Open ports 3724 and 8085 on your router — portforward.com has walkthroughs for basically every consumer router model
+Open ports 3724 and 8085 on your router - portforward.com has walkthroughs for basically every consumer router model
 Give your friends your public IPv4 address followed by :3724
 
 
@@ -57,7 +57,42 @@ Don't feel discouraged to go down this route though, I only opted for a differen
 
 ### [Localtonet](https://localtonet.com/)
 
-It supports TCP tunnels right out of the box without any VM hosting, and also offers static IP addresses. The setup:
+It supports TCP tunnels right out of the box without any VM hosting, and also offers static IP addresses. First we have to install the client serverside and then set up the required tunnels.
+
+#### Installing the Client
+
+First the VM itself needs the Localtonet client installed and running - this is the piece that actually opens the outbound connection your tunnels ride on. Without it, tunnels would sit on the dashboard with nothing on the other end.
+
+```bash
+curl -fsSL https://localtonet.com/install.sh | sh
+```
+
+This installs to /usr/local/bin/localtonet, auto-detecting your CPU/OS.
+
+Authenticate it with your account's AuthToken (found on the dashboard under My Tokens):
+
+```bash
+localtonet --authtoken YOUR_AUTH_TOKEN_HERE
+```
+
+Then install it as a proper systemd service, so it survives reboots without you needing to remember to start it manually:
+
+```bash
+sudo localtonet --install-service --authtoken YOUR_AUTH_TOKEN_HERE
+sudo localtonet --start-service --authtoken YOUR_AUTH_TOKEN_HERE
+```
+
+One thing worth knowing early, since it tripped me up: --start-service/--stop-service only control this local client process — whether your VM has an active connection to Localtonet at all. They do not control individual tunnels, and critically, they don't stop billing either (more on that below, once tunnels are actually created). Think of this step as "is the VM plugged into Localtonet at all," separate from "which specific tunnels are active."
+
+Confirm it's actually running before moving on:
+
+```bash
+sudo localtonet --status-service
+```
+
+#### Setting up the tunnels via dashboard
+
+Now that the server can talk to the localtonet services it's time to set up the tunnels:
 
 - Create two TCP tunnels on the dashboard — one for port `3724` (authserver), one for `8085` (worldserver)
 - Enable the static/reserved address option on each tunnel, so the hostname:port never changes across restarts
@@ -69,12 +104,14 @@ There is a caveat: Localtonet bills per tunnel based on running time, not bandwi
 
 The `realmlist` table on your server needs both the public tunnel address and a `localAddress` for same-subnet connections:
 
+```
 UPDATE realmlist SET
   address = 'your-tunnel-hostname.localto.net',
   localAddress = 'your-tunnel-hostname.localto.net',
   localSubnetMask = '255.255.255.255',
   port = <your-world-tunnel-port>
 WHERE id = 1;
+```
 
 Why localAddress is set to the same value as address: setting localSubnetMask to 255.255.255.255 (the most restrictive possible mask) makes the "local" branch of the address-selection logic effectively unreachable for any real client, so every connection - regardless of network - is routed through the exact same tunnel path. This avoids a subtle bug where players on the same LAN as the server get redirected to a localAddress that only makes sense from the server's own perspective (e.g. 127.0.0.1), resulting in a connection that authenticates successfully but then hangs indefinitely on "Logging in to game server."
 
@@ -101,7 +138,7 @@ When taking a look at the auth-server log files (if you ever need to troubleshoo
 [ERROR]: [1406] Data too long for column 'last_ip' at row 1
 ```
 
-And here we have the problem spelled out for us. Auth-server writes the connecting IP into the account table's last_ip column as part of finishing the login handshake — and if that column was sized for plain IPv4 addresses only, the write fails outright. Also, since that same SQL statement also sets the account's session_key, the failed write means the session key never gets saved either — which is the actual reason the world server then rejects the connection a moment later. Two failures, one root cause, and the second one is what you actually see in the logs unless you go looking at Auth.log specifically.
+And here we have the problem spelled out for us. Auth-server writes the connecting IP into the account table's last_ip column as part of finishing the login handshake - and if that column was sized for plain IPv4 addresses only, the write fails outright. Also, since that same SQL statement also sets the account's session_key, the failed write means the session key never gets saved either  which is the actual reason the world server then rejects the connection a moment later. Two failures, one root cause, and the second one is what you actually see in the logs unless you go looking at Auth.log specifically.
 
 The fix is a one-time schema change:
 
