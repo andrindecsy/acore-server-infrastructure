@@ -6,7 +6,7 @@ Setup, operation, and automation of a Linux-based multiplayer server, including 
 - [Tunneling & Networking](docs/TUNNELING.md) - network diagnosis, database fixes, evaluated approaches, final configuration
 - [Automation set up](docs/AUTOMATION.md) - automation scripts, monitoring
 - [Discord Integration](docs/NOTIFICATION-SYSTEM.md) - relay server data to text channels
-- [Changelog](changelog.md) - list of this project's additions and removals to represent design process
+- [Changelog](changelog.md) - history of this project's features
 
 This is a somewhat in-order list for the documentation based on when you will probably be needing each part.
 
@@ -17,16 +17,20 @@ azerothcore-infra/
 ├── config/
 │   └── discord-webhooks.conf.example
 ├── docs/
-│   ├── SETUP.md
+│   ├── AUTOMATION.md
+│   ├── NOTIFICATION-SYSTEM.md
 │   └── TUNNELING.md
 ├── scripts/
+│   ├── hourly-reports.sh
+│   ├── memlogs.sh
+│   ├── notify.sh
+│   ├── scheduled-restart.sh
 │   ├── server-start.sh
 │   ├── server-stop.sh
-│   ├── scheduled-restart.sh
-│   ├── watchdog.sh
-│   └── memlog.sh
+│   └── watchdog.sh
 ├── README.md
-└── bashrc-functions.sh
+├── bashrc-functions.sh
+└── changelog.md
 ```
 
 ## Overview
