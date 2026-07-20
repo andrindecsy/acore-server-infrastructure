@@ -1,19 +1,25 @@
 #!/bin/bash
-# Stops all AzerothCore tmux sessions (auth, world, and any tunnel
-# sessions), logs the event, and notifies Discord.
 #
-# IMPORTANT: `tmux kill-server` kills ALL tmux sessions on the system,
-# not just the AzerothCore ones. The expected-state marker is written
-# BEFORE the kill so the watchdog doesn't mistake this for a crash.
+# Saves progression, stops authserver/worldserver, logs the event, and notifies Discord.
 #
 # Depends on:
-#   - ~/discord-webhooks.conf (see config/discord-webhooks.conf.example)
+#   - notify.sh (in the same directory or ~/notify.sh)
 
-source ~/discord-webhooks.conf
-LOGFILE=~/memory-log.csv
+SESSION="world-session"
 
-echo "$(date '+%Y-%m-%d %H:%M:%S'),SERVER STOPPED,,,,," >> "$LOGFILE"
-send_discord "$WEBHOOK_STATUS" "🔴 **Server stopped** at $(date '+%Y-%m-%d %H:%M:%S')"
+# save character progression, wait, kill server
+tmux send-keys -t $SESSION ".server shutdown 5" Enter
+sleep 6
+tmux kill-session -t auth-session 2>/dev/null
+tmux kill-session -t world-session 2>/dev/null
+
+# log succesfull stop
+mysql -u acore -pacore -h 127.0.0.1 acore_monitoring -e "
+    INSERT INTO server_events (timestamp, event_type, details)
+    VALUES (NOW(), 'STOP', 'Server shut down gracefully');" 2>/dev/null
+
+# log expected state for watchdog
 echo "stopped" > ~/.server-expected-state
 
-tmux kill-server
+# send discord notif
+bash ~/notify.sh "status" "🔴 **Server stopped** at $(date '+%Y-%m-%d %H:%M:%S')"
