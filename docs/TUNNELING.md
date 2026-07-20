@@ -2,7 +2,7 @@
 
 This is your first stop after succesfully installing the server applications and confirming they run, which is where the [video guide](https://www.youtube.com/watch?v=DwJ6OfPophw) I mentioned will leave you. In here we will cover how external players can reach a game server hosted on a home connection and what roadblocks you might encounter
 
-## Port Forwarding, or maybe not
+## Port Forwarding
 
 When you break down a World of Warcraft server, there are two separate applications running on the machine, the **authentication server** and the **world server**. The auth-server handles log in, realm selection, character selection and forwards the connection to the world-server, which handles all the game logic. As they are completly different processes, their access is also separate; auth-server is assigned port 3724, world-server gets 8085, these numbers will the important in a moment. That means incoming internet traffic has to specify that they want to access the right port when reaching your machine, and that is where we hit our first checkpoint
 
@@ -20,12 +20,12 @@ As we can imagine, IPv4 addresses are rare and comparetively expensive. That is 
 
 Now most people are on CGNATs, but it's worth double checking before jumping into the workaround. If you are lucky enough to have a native IPv4 connection you can skip the whole tunneling section entirely.
 
-Go to your router's settings page by typing its local IP into your browser - typically something like 192.168.1.1 or 192.168.178.1, though it varies by manufacturer. Once you're in, look for your internet/WAN connection settings. What you're hunting for is any explicit mention of DS-Lite or "Native IPv6 with IPv4 via CGNAT" - if either of those shows up, you're on the tunnel path, and none of the port forwarding below will ever work no matter how correctly you configure it, since your router genuinely isn't the edge of the internet for your IPv4 address; your ISP's shared NAT box is.
+Go to your router's settings page by typing its local IP into your browser — typically something like 192.168.1.1 or 192.168.178.1, though it varies by manufacturer. Once you're in, look for your internet/WAN connection settings. What you're hunting for is any explicit mention of DS-Lite or "Native IPv6 with IPv4 via CGNAT" — if either of those shows up, you're on the tunnel path, and none of the port forwarding below will ever work no matter how correctly you configure it, since your router genuinely isn't the edge of the internet for your IPv4 address; your ISP's shared NAT box is.
 
 If instead you see Native IPv4 (or nothing suggesting a workaround at all), you're in the easier position. All you need is:
 
 
-Open ports 3724 and 8085 on your router - portforward.com has walkthroughs for basically every consumer router model
+Open ports 3724 and 8085 on your router — portforward.com has walkthroughs for basically every consumer router model
 Give your friends your public IPv4 address followed by :3724
 
 
@@ -57,48 +57,13 @@ Don't feel discouraged to go down this route though, I only opted for a differen
 
 ### [Localtonet](https://localtonet.com/)
 
-It supports TCP tunnels right out of the box without any VM hosting, and also offers static IP addresses. First we have to install the client serverside and then set up the required tunnels.
-
-#### Installing the Client
-
-First the VM itself needs the Localtonet client installed and running - this is the piece that actually opens the outbound connection your tunnels ride on. Without it, tunnels would sit on the dashboard with nothing on the other end.
-
-```bash
-curl -fsSL https://localtonet.com/install.sh | sh
-```
-
-This installs to /usr/local/bin/localtonet, auto-detecting your CPU/OS.
-
-Authenticate it with your account's AuthToken (found on the dashboard under My Tokens):
-
-```bash
-localtonet --authtoken YOUR_AUTH_TOKEN_HERE
-```
-
-Then install it as a proper systemd service, so it survives reboots without you needing to remember to start it manually:
-
-```bash
-sudo localtonet --install-service --authtoken YOUR_AUTH_TOKEN_HERE
-sudo localtonet --start-service --authtoken YOUR_AUTH_TOKEN_HERE
-```
-
-One thing worth knowing early, since it tripped me up: --start-service/--stop-service only control this local client process — whether your VM has an active connection to Localtonet at all. They do not control individual tunnels, and critically, they don't stop billing either (more on that below, once tunnels are actually created). Think of this step as "is the VM plugged into Localtonet at all," separate from "which specific tunnels are active."
-
-Confirm it's actually running before moving on:
-
-```bash
-sudo localtonet --status-service
-```
-
-#### Setting up the tunnels via dashboard
-
-Now that the server can talk to the localtonet services it's time to set up the tunnels:
+It supports TCP tunnels right out of the box without any VM hosting, and also offers static IP addresses. The setup:
 
 - Create two TCP tunnels on the dashboard — one for port `3724` (authserver), one for `8085` (worldserver)
 - Enable the static/reserved address option on each tunnel, so the hostname:port never changes across restarts
 - Point the realmlist at the tunnel addresses (see below)
 
-There is a caveat: Localtonet bills per tunnel based on running time, not bandwidth - roughly a couple dollars/month per tunnel if left running continuously. Since this is a hobby server without 24/7 demand, there is no need to leave the tunnels running while noone is playing or you are by yourself. We will not be going into the scripting here, that is covered in [AUTOMATION.md](AUTOMATION.md), just know that there are two bash functions for that, golocal and goonline, to switch between the two from your console and avoid unnecessary billing.
+There is a caveat: Localtonet bills per tunnel based on running time, not bandwidth - roughly a couple dollars/month per tunnel if left running continuously. Since this is a hobby server without 24/7 demand, there is no need to leave the tunnels running while noone is playing or you are by yourself. We will not be going into the scripting here, that is covered in [SETUP.md](SETUP.md.md), just know that there are two bash functions for that, golocal and goonline, to switch between the two from your console and avoid unnecessary billing.
 
 ## Realmlist Configuration
 
@@ -120,7 +85,7 @@ Players connect using:
 ```
 set realmlist your-auth-tunnel-hostname.localto.net:<auth-tunnel-port>
 ```
-### Database Fix
+## Database Fix
 
 Once the tunnel is actually working there is still a small database tweak to be made.
 
@@ -138,7 +103,7 @@ When taking a look at the auth-server log files (if you ever need to troubleshoo
 [ERROR]: [1406] Data too long for column 'last_ip' at row 1
 ```
 
-And here we have the problem spelled out for us. Auth-server writes the connecting IP into the account table's last_ip column as part of finishing the login handshake - and if that column was sized for plain IPv4 addresses only, the write fails outright. Also, since that same SQL statement also sets the account's session_key, the failed write means the session key never gets saved either  which is the actual reason the world server then rejects the connection a moment later. Two failures, one root cause, and the second one is what you actually see in the logs unless you go looking at Auth.log specifically.
+And here we have the problem spelled out for us. Auth-server writes the connecting IP into the account table's last_ip column as part of finishing the login handshake — and if that column was sized for plain IPv4 addresses only, the write fails outright. Also, since that same SQL statement also sets the account's session_key, the failed write means the session key never gets saved either — which is the actual reason the world server then rejects the connection a moment later. Two failures, one root cause, and the second one is what you actually see in the logs unless you go looking at Auth.log specifically.
 
 The fix is a one-time schema change:
 
@@ -148,3 +113,60 @@ ALTER TABLE account MODIFY last_attempt_ip VARCHAR(45);
 ```
 
 VARCHAR(45) is the standard safe size for any IPv6 representation, mapped or native. Run it once, restart nothing, and the very next login attempt should go through cleanly.
+
+## Remote ssh from outside the network
+
+After setting up the automation layers explained later you should have a persistent game server, mostly - crashes and software updates still happen. If your server lives in a VM or an external machine you most certainly are connecting to it on your console via `ssh <username>@<local-ip>`. This connection is very simple if you are in the server's network but requires some set up if you are away, and when those unexpected shutdowns occur, you might want to remotely bring the service back up. Here we will set up a tunnel to be able to `ssh`our way in from anywhere. The process will be the same as in the **tunnel** section but with an added security step to avoid unwanted connections.
+
+### Tunnel set up
+
+This will be short. From your dashboard create a new TCP tunnel to port 22 (dedicated port for ssh connection). Enable static/reserved address and note the assigned hostname and port - on the tunnel you will have a url in the form of \<host-name\>.localto.net:\<port\>.
+
+### SSH key authentification
+
+This part is optional, but more secure than simply logging in with the systems' password. You can generate an SSH key pair on the device you want to connect with by running 
+
+```bash
+ssh-keygen -t ed25519
+```
+
+You can safely click through all the prompts, though keep an eye out for the default path in which the keys will be saved. After the process go to that folder; you will see `id_ed25519`and `id_ed25519.pub`. `id_ed25519` is your private key, never share this! `id_ed25519.pub`is your public one, open the file with a text editor and copy the contents. On your server machine go ahead and run:
+
+```bash
+sudo -u <username> mkdir -p /home/<username>/.ssh
+sudo -u <username> nano /home/<username>/.ssh/authorized_keys
+```
+
+This will create a hidden folder called `ssh`, where your key(s) will live, and inside that folder a text file in which you will copy your key. Now you can run
+
+```bash
+ssh -4 -p <tunnel-port> root@<tunnel-hostname>.localto.net
+```
+
+on your remote device anytime the tunnel is running. Although this is an additional tunnel that can be billed I haven't set up a command to start and stop it. Unlike the world and auth tunnels, I find myself starting and stopping it manually via dashboard anytime I need it.
+
+### Allowing other people to connect
+
+Should you wish to grant remote ssh access to another person, first: congratulations on having a friend. Now you will have to do the same process for their device, but first let's create a new user on your server machine for them to use with
+
+```bash
+adduser <username>
+```
+
+The username you enter is their log in. You can skip the prompts or enter aditional information, the most important being a password. It is not necessarily needed, sind we already have the SSH key security layer, but it is good practice to have an additional one. If you want then to have full access run
+
+```bash
+usermod -aG sudo <username>
+```
+
+If not, grant them ownership/access to relevant directories only instead with
+
+```bash
+sudo chown -R <username>:<username> ~/azerothcore-wotlk/modules # example of ownership grant restricted to the module directory
+```
+
+Now we walk back the steps we did earlier for our own access:
+
+- create SSH key pair on the accessing machine 
+- create .ssh directory and authorized_keys file inside, only this time under their home directory
+- paste public key into document
