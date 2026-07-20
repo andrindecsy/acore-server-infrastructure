@@ -49,9 +49,9 @@ golocal() {
     echo "Switching to LOCAL mode (no tunnels, free)..."
     curl -s -X POST "https://localtonet.com/api/v2/tunnels/${LOCALTONET_AUTH_ID}/actions/stop" -H "Authorization: Bearer ${LOCALTONET_APIKEY}" > /dev/null
     curl -s -X POST "https://localtonet.com/api/v2/tunnels/${LOCALTONET_WORLD_ID}/actions/stop" -H "Authorization: Bearer ${LOCALTONET_APIKEY}" > /dev/null
-    mysql -u acore -pacore -h 127.0.0.1 acore_auth -e "UPDATE realmlist SET address = 'YOUR_LAN_IP', localAddress = 'YOUR_LAN_IP', localSubnetMask = '255.255.255.255', port = 8085 WHERE id = 1;" 2>/dev/null
+    mysql -u acore -pacore -h 127.0.0.1 acore_auth -e "UPDATE realmlist SET address = '192.168.178.67', localAddress = '192.168.178.67', localSubnetMask = '255.255.255.255', port = 8085 WHERE id = 1;">
     echo "Done. Both tunnels stopped (billing paused), realmlist set to LAN IP."
-    echo "On your PC's realmlist.wtf, use: set realmlist YOUR_LAN_IP"
+    echo "On your PC's realmlist.wtf, use: set realmlist 192.168.178.67"
 }
 
 goonline() {
@@ -59,9 +59,9 @@ goonline() {
     curl -s -X POST "https://localtonet.com/api/v2/tunnels/${LOCALTONET_AUTH_ID}/actions/start" -H "Authorization: Bearer ${LOCALTONET_APIKEY}" > /dev/null
     curl -s -X POST "https://localtonet.com/api/v2/tunnels/${LOCALTONET_WORLD_ID}/actions/start" -H "Authorization: Bearer ${LOCALTONET_APIKEY}" > /dev/null
     sleep 3
-    mysql -u acore -pacore -h 127.0.0.1 acore_auth -e "UPDATE realmlist SET address = 'YOUR_WORLD_TUNNEL_HOSTNAME', localAddress = 'YOUR_WORLD_TUNNEL_HOSTNAME', localSubnetMask = '255.255.255.255', port = YOUR_WORLD_TUNNEL_PORT WHERE id = 1;" 2>/dev/null
+    mysql -u acore -pacore -h 127.0.0.1 acore_auth -e "UPDATE realmlist SET address = 'j3fsdvxny6.localto.net', localAddress = 'j3fsdvxny6.localto.net', localSubnetMask = '255.255.255.255', port = 462>
     echo "Done. Both tunnels started, realmlist set to Localtonet address."
-    echo "For players, use: set realmlist YOUR_AUTH_TUNNEL_HOSTNAME:YOUR_AUTH_TUNNEL_PORT"
+    echo "For players, use: set realmlist aekc7fzfm0.localto.net:2321"
 }
 
 # ============================================================
@@ -186,30 +186,25 @@ printallchars() {
 # Memory logging controls
 # ============================================================
 
-memlogstart() {
-    if tmux has-session -t memlog 2>/dev/null; then
-        echo "memlog is already running."
-    else
-        tmux new -d -s memlog "~/memlog.sh"
-        echo "memlog started in background (tmux session: memlog)."
-    fi
-}
-
-memlogstop() {
-    if tmux has-session -t memlog 2>/dev/null; then
-        tmux kill-session -t memlog
-        echo "memlog stopped."
-    else
-        echo "memlog was not running."
-    fi
-}
-
 memlogread() {
-    if [ -f ~/memory-log.csv ]; then
-        column -s, -t ~/memory-log.csv | less
-    else
-        echo "No log file found yet. Run memlogstart first."
-    fi
+    # Combine memory logs and server events into a single chronological timeline
+    sudo mysql -D acore_monitoring -e "
+        SELECT
+            timestamp,
+            'LOG' AS type,
+            CONCAT('Avail: ', available_mb, 'MB | World RSS: ', worldserver_rss_mb, 'MB | Online: ', characters_online) AS details
+        FROM memory_log
+
+        UNION ALL
+
+        SELECT
+            timestamp,
+            event_type AS type,
+            details
+        FROM server_events
+
+        ORDER BY timestamp DESC
+        LIMIT 30;" | column -t -s $'\t' | less -S
 }
 
 # ============================================================
