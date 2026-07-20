@@ -1,48 +1,55 @@
 #!/bin/bash
-# Continuously logs system memory usage once per minute to a CSV file,
-# sends a Discord warning the first time available memory drops below
-# a threshold (self-resetting once it recovers), and posts an hourly
-# summary to a separate Discord channel.
 #
-# Intended to run inside a dedicated tmux session, auto-started by
-# server-start.sh:
-#   tmux new -d -s memlog "~/memlog.sh"
+# Logs detailed system + process-level memory metrics to MySQL every minute.
+#
+# Posts an hourly summary to Discord. Does NOT take any restart action — that responsibility now lives entirely in watchdog.sh.
 #
 # Depends on:
-#   - ~/discord-webhooks.conf (see config/discord-webhooks.conf.example)
+#   - notify.sh (in the same directory  or ~/notify.sh)
+# acore_monitoring database with the following memory_log table:
+#
+# id INT AUTO_INCREMENT PRIMARY KEY,
+# timestamp DATETIME NOT NULL,
+# total_mb INT,
+# used_mb INT,
+# free_mb INT,
+# available_mb INT,
+# swap_used_mb INT,
+# worldserver_rss_mb INT,
+# worldserver_threads INT,
+# worldserver_fds INT,
+# worldserver_uptime_sec INT,
+# authserver_rss_mb INT,
+# characters_online INT
 
-source ~/discord-webhooks.conf
-LOGFILE=~/memory-log.csv
-LOW_MEM_THRESHOLD=1000  # MB - adjust to roughly 15-20% of your total RAM
-ALERTED=0
-COUNTER=0
+# look up process data and save in variables
+TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
 
-# Write CSV header if the log file doesn't exist yet
-if [ ! -f "$LOGFILE" ]; then
-    echo "timestamp,total,used,free,available,swap_used" > "$LOGFILE"
-fi
+read TOTAL USED FREE AVAILABLE < <(free -m | awk '/^Mem:/ {print $2, $3, $4, $7}')
+SWAP_USED=$(free -m | awk '/^Swap:/ {print $3}')
 
-while true; do
-    TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
-    MEM_LINE=$(free -m | awk '/^Mem:/ {print $2","$3","$4","$7}')
-    SWAP_USED=$(free -m | awk '/^Swap:/ {print $3}')
-    AVAILABLE=$(free -m | awk '/^Mem:/ {print $7}')
-    echo "${TIMESTAMP},${MEM_LINE},${SWAP_USED}" >> "$LOGFILE"
+WORLD_PID=$(pgrep -x worldserver | head -1)
+AUTH_PID=$(pgrep -x authserver | head -1)
 
-    # Low memory warning - fires once, resets once memory recovers
-    if [ "$AVAILABLE" -lt "$LOW_MEM_THRESHOLD" ] && [ "$ALERTED" -eq 0 ]; then
-        send_discord "$WEBHOOK_WARNINGS" "⚠️ **Low memory warning**: only ${AVAILABLE}MB available (threshold: ${LOW_MEM_THRESHOLD}MB) at ${TIMESTAMP}"
-        ALERTED=1
-    elif [ "$AVAILABLE" -ge "$LOW_MEM_THRESHOLD" ]; then
-        ALERTED=0
-    fi
+WORLD_RSS=$([ -n "$WORLD_PID" ] && ps -o rss= -p "$WORLD_PID" | tr -d ' ' || echo 0)
+WORLD_RSS_MB=$((WORLD_RSS / 1024))
+WORLD_THREADS=$([ -n "$WORLD_PID" ] && ps -o nlwp= -p "$WORLD_PID" | tr -d ' ' || echo 0)
+WORLD_FDS=$([ -n "$WORLD_PID" ] && ls /proc/"$WORLD_PID"/fd 2>/dev/null | wc -l || echo 0)
+WORLD_UPTIME=$([ -n "$WORLD_PID" ] && ps -o etimes= -p "$WORLD_PID" | tr -d ' ' || echo 0)
 
-    # Hourly summary (every 60 iterations = 60 minutes)
-    COUNTER=$((COUNTER + 1))
-    if [ "$COUNTER" -ge 60 ]; then
-        send_discord "$WEBHOOK_MEMORY" "📊 **Hourly memory check** (${TIMESTAMP}): ${AVAILABLE}MB available"
-        COUNTER=0
-    fi
+AUTH_RSS=$([ -n "$AUTH_PID" ] && ps -o rss= -p "$AUTH_PID" | tr -d ' ' || echo 0)
+AUTH_RSS_MB=$((AUTH_RSS / 1024))
 
-    sleep 60
-done
+CHARS_ONLINE=$(mysql -u acore -pacore -h 127.0.0.1 acore_characters -N -e "SELECT COUNT(*) FROM characters WHERE online = 1;" 2>/dev/null)
+CHARS_ONLINE=${CHARS_ONLINE:-0}
+
+# load variables into database
+mysql -u acore -pacore -h 127.0.0.1 acore_monitoring -e "
+        INSERT INTO memory_log
+        (timestamp, total_mb, used_mb, free_mb, available_mb, swap_used_mb,
+         worldserver_rss_mb, worldserver_threads, worldserver_fds, worldserver_uptime_sec,
+         authserver_rss_mb, characters_online)
+        VALUES
+        ('$TIMESTAMP', $TOTAL, $USED, $FREE, $AVAILABLE, $SWAP_USED,
+         $WORLD_RSS_MB, $WORLD_THREADS, $WORLD_FDS, $WORLD_UPTIME,
+         $AUTH_RSS_MB, $CHARS_ONLINE);" 2>/dev/null
